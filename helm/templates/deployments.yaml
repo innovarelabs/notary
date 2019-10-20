@@ -1,0 +1,191 @@
+{{- if not (eq .Values.storage.type "memory") }}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notary-db
+  name: notary-db
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notary
+        app.kubernetes.io/component: notary-db
+    spec:
+      containers:
+      {{- if eq .Values.storage.type "mysql" }}
+      - args:
+        - mysqld
+        - --innodb_file_per_table
+        env:
+        - name: MYSQL_ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        image: mariadb:10.1.28
+        name: mysql
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: notary-data
+      {{- else if eq .Values.storage.type "postgres" }}
+      - env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_DB
+          value: postgres
+        image: postgres:9.5.4
+        name: postgres
+        ports:
+        - containerPort: 5432
+          name: postgres
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data/pgdata
+          name: notary-data
+      {{- end }}
+        - mountPath: /docker-entrypoint-initdb.d
+          name: notarysql
+      volumes:
+      - name: notary-data
+        persistentVolumeClaim:
+          claimName: notary-data
+      - name: notarysql
+        configMap:
+          name: notarysql
+
+---
+
+{{- end }}
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notaryserver
+  name: notaryserver
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notary
+        app.kubernetes.io/component: notaryserver
+    spec:
+      {{- if not (eq .Values.storage.type "memory") }}
+      initContainers:
+      - command:
+        - /migrate
+        - -path=/migrations/server/{{ .Values.storage.type }}
+        - -database={{ .Values.storage.type }}://{{ template "notary.serverdburl" . }}
+        - up
+        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
+        name: migrate
+        volumeMounts:
+        - mountPath: /migrations/server/{{ .Values.storage.type }}
+          name: migrations-server
+        - mountPath: /tls
+          name: tls
+          readOnly: true
+      {{- end }}
+      containers:
+      - command:
+        - notary-server
+        - -config=/config/server-config.json
+        image: notary:{{ .Values.server.version }}
+        name: server
+        ports:
+        - containerPort: {{ .Values.server.port }}
+          name: https
+        volumeMounts:
+        - mountPath: /config
+          name: config
+        - mountPath: /tls
+          name: tls
+      volumes:
+      {{- if not (eq .Values.storage.type "memory") }}
+      - configMap:
+          name: notary-migrations-server
+        name: migrations-server
+      {{- end }}
+      - configMap:
+          name: notary-config
+        name: config
+      - secret:
+          secretName: notary-tls
+        name: tls
+
+{{- if eq .Values.server.trust.type "remote" }}
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notarysigner
+  name: notarysigner
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notary
+        app.kubernetes.io/component: notarysigner
+    spec:
+      {{- if not (eq .Values.storage.type "memory") }}
+      initContainers:
+      - command:
+        - /migrate
+        - -path=/migrations/signer/{{ .Values.storage.type }}
+        - -database={{ .Values.storage.type }}://{{ template "notary.signerdburl" . }}
+        - up
+        image: migrate/migrate:{{ .Values.storage.migrateVersion }}
+        name: migrate
+        volumeMounts:
+        - mountPath: /migrations/signer/{{ .Values.storage.type }}
+          name: migrations-signer
+        - mountPath: /tls
+          name: tls
+          readOnly: true
+      {{- end }}
+      containers:
+      - command:
+        - notary-signer
+        - -config=/config/signer-config.json
+        image: notary:{{ .Values.signer.version }}
+        name: signer
+        env:
+        - name: NOTARY_SIGNER_{{ .Values.signer.defaultAlias | upper }}
+          valueFrom:
+            secretKeyRef:
+              name: notarysigner-alias-secret
+              key: alias-secret
+        ports:
+        - containerPort: {{ .Values.signer.port }}
+          name: https
+        volumeMounts:
+        - mountPath: /config
+          name: config
+        - mountPath: /tls
+          name: tls
+      volumes:
+      {{- if not (eq .Values.storage.type "memory") }}
+      - configMap:
+          name: notary-migrations-signer
+        name: migrations-signer
+      {{- end }}
+      - configMap:
+          name: notary-config
+        name: config
+      - secret:
+          secretName: notary-tls
+        name: tls
+
+{{- end }}

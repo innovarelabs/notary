@@ -15,3 +15,9 @@ cross
 *.test
 coverage*.txt
 gas_output.csv
+/fixtures/*.crt
+/fixtures/*.key
+/fixtures/*.pem
+/fixtures/database/*.pem
+/notarysql/postgresql-initdb.d/*.crt
+/notarysql/postgresql-initdb.d/*.key

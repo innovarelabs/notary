@@ -1,0 +1,61 @@
+{{- if eq .Values.server.trust.type "remote" }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: notarysigner
+spec:
+  ports:
+  - name: https
+    port: {{ .Values.signer.port }}
+    targetPort: {{ .Values.signer.port }}
+  selector:
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notarysigner
+
+---
+
+{{- end }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: notaryserver
+spec:
+  ports:
+  - name: https
+    port: {{ .Values.server.port }}
+    targetPort: {{ .Values.server.port }}
+  selector:
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notaryserver
+  {{- if .Values.loadBalancer.enabled }}
+  type: LoadBalancer
+  loadBalancerIP: 127.0.0.1
+  {{- end }}
+
+
+---
+
+{{- if not (eq .Values.storage.type "memory") }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: notary-db
+spec:
+  ports:
+  {{- if eq .Values.storage.type "mysql" }}
+  - name: mysql
+    port: 3306
+    targetPort: 3306
+  {{- else if eq .Values.storage.type "postgres" }}
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+  {{- end }}
+  selector:
+    app.kubernetes.io/name: notary
+    app.kubernetes.io/component: notary-db
+
+{{- end }}

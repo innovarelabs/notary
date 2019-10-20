@@ -1,0 +1,76 @@
+{{- if not (eq .Values.storage.type "memory") }}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notarysql
+data:
+  {{- if eq .Values.storage.type "mysql" }}
+  {{- range $path, $bytes := .Files.Glob "notarysql/mysql-initdb.d/**" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- else if eq .Values.storage.type "postgres" }}
+  {{- range $path, $bytes := .Files.Glob "notarysql/postgresql-initdb.d/**" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notary-migrations-server
+data:
+  {{- if eq .Values.storage.type "mysql" }}
+  {{- range $path, $bytes := .Files.Glob "migrations/server/mysql/**" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- else if eq .Values.storage.type "postgres" }}
+  {{- range $path, $bytes := .Files.Glob "migrations/server/postgresql/**" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+
+{{- if eq .Values.server.trust.type "remote" }}
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notary-migrations-signer
+data:
+  {{- if eq .Values.storage.type "mysql" }}
+  {{- range $path, $bytes := .Files.Glob "migrations/signer/mysql/**" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- else if eq .Values.storage.type "postgres" }}
+  {{- range $path, $bytes := .Files.Glob "migrations/signer/postgresql/**" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+
+{{- end }}
+
+---
+
+{{- end }}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notary-config
+data:
+  server-config.json: |
+{{ tpl (.Files.Get "files/server-config.json.tpl") . | indent 4 }}
+  signer-config.json: |
+{{ tpl (.Files.Get "files/signer-config.json.tpl") . | indent 4 }}

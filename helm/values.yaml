@@ -1,0 +1,36 @@
+ingress:
+  enabled: true
+  tls:
+    enabled: true
+  hosts:
+  - localhost
+  - notary.ulmx.ca
+  path: /
+
+loadBalancer:
+  enabled: true
+
+storage:
+  type: mysql
+  pvcSize: 100Mi
+  migrateVersion: v4.6.2
+
+server:
+  version: server-0.6.1-2
+  port: 4443
+  gunPrefixes:
+  - "docker.io/"
+  - "ulmx.ca/"
+  trust:
+    type: remote
+    hostname: notarysigner
+    port: 7899
+
+signer:
+  version: signer-0.6.1-2
+  port: 7899
+  defaultAlias: alias
+  aliasSecret: alias
+
+logging:
+  level: debug
