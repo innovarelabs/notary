@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.16.0 (0c01309)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server
+  name: server
+spec:
+  ports:
+  - name: "8080"
+    port: 8080
+    targetPort: 8080
+  - name: "4443"
+    port: 4443
+    targetPort: 4443
+  selector:
+    io.kompose.service: server
+  type: LoadBalancer
+status:
+  loadBalancer: {}

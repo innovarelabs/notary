@@ -17,7 +17,7 @@ fi
 # First generates root-ca
 openssl genrsa -out "root-ca.key" 4096
 openssl req -new -key "root-ca.key" -out "root-ca.csr" -sha256 \
-        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=Notary Testing CA'
+        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=Notary CA'
 
 cat > "root-ca.cnf" <<EOL
 [root_ca]
@@ -35,7 +35,7 @@ rm "root-ca.cnf" "root-ca.csr"
 # Then generate intermediate-ca
 openssl genrsa -out "intermediate-ca.key" 4096
 openssl req -new -key "intermediate-ca.key" -out "intermediate-ca.csr" -sha256 \
-        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=Notary Intermediate Testing CA'
+        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=Notary Intermediate Ulmx CA'
 
 cat > "intermediate-ca.cnf" <<EOL
 [intermediate_ca]
@@ -55,6 +55,7 @@ rm "root-ca.key" "root-ca.srl"
 
 # Then generate notary-server
 # Use the existing notary-server key
+#openssl genrsa -out "notary-server.key" 4096
 openssl req -new -key "notary-server.key" -out "notary-server.csr" -sha256 \
         -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=notary-server'
 
@@ -64,7 +65,7 @@ authorityKeyIdentifier=keyid,issuer
 basicConstraints = critical,CA:FALSE
 extendedKeyUsage=serverAuth,clientAuth
 keyUsage = critical, digitalSignature, keyEncipherment
-subjectAltName = DNS:notary-server, DNS:notaryserver, DNS:localhost, IP:127.0.0.1
+subjectAltName = DNS:notary-server, DNS:notaryserver, DNS:localhost, IP:127.0.0.1, notary.ulmx.ca
 subjectKeyIdentifier=hash
 EOL
 
@@ -78,6 +79,7 @@ rm "notary-server.cnf" "notary-server.csr"
 
 # Then generate notary-signer
 # Use the existing notary-signer key
+#openssl genrsa -out "notary-signer.key" 4096
 openssl req -new -key "notary-signer.key" -out "notary-signer.csr" -sha256 \
         -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=notary-signer'
 
@@ -123,33 +125,37 @@ cat "intermediate-ca.crt" >> "notary-escrow.crt"
 rm "notary-escrow.cnf" "notary-escrow.csr"
 
 
-# Then generate secure.example.com
-# Use the existing secure.example.com key
-openssl req -new -key "secure.example.com.key" -out "secure.example.com.csr" -sha256 \
-        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=secure.example.com'
+# Then generate notary.ulmx.ca
+## Use the existing notary.ulmx.ca key
+# openssl req -new -key "notary.ulmx.ca.key" -out "notary.ulmx.ca.csr" -sha256 \
+        -subj '/C=US/ST=CA/L=San Francisco/O=Docker/CN=notary.ulmx.ca'
 
-cat > "secure.example.com.cnf" <<EOL
-[secure.example.com]
+openssl req -out cert.csr -new -newkey rsa:2048 -sha256 -keyout key.pem -subj \
+"/C=CA/ST=Quebec/L=Montreal/O=Banque Nationale du Canada/OU=ULMX_FASTCARD/CN=notary.ulmx.ca" \
+-reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:notary.ulmx.ca"))
+
+cat > "notary.ulmx.ca.cnf" <<EOL
+[notary.ulmx.ca]
 authorityKeyIdentifier=keyid,issuer
 basicConstraints = critical,CA:FALSE
 extendedKeyUsage=serverAuth,clientAuth
 keyUsage = critical, digitalSignature, keyEncipherment
-subjectAltName = DNS:secure.example.com, DNS:localhost, IP:127.0.0.1
+subjectAltName = DNS:notary.ulmx.ca, DNS:localhost, IP:127.0.0.1
 subjectKeyIdentifier=hash
 EOL
 
-openssl x509 -req -days 750 -in "secure.example.com.csr" -sha256 \
+openssl x509 -req -days 750 -in "notary.ulmx.ca.csr" -sha256 \
         -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
-        -out "secure.example.com.crt" -extfile "secure.example.com.cnf" -extensions secure.example.com
-rm "secure.example.com.cnf" "secure.example.com.csr"
+        -out "notary.ulmx.ca.crt" -extfile "notary.ulmx.ca.cnf" -extensions notary.ulmx.ca
+rm "notary.ulmx.ca.cnf" "notary.ulmx.ca.csr"
 rm "intermediate-ca.key" "intermediate-ca.srl"
 
 
-# generate self-signed_docker.com-notary.crt and self-signed_secure.example.com
-for selfsigned in self-signed_docker.com-notary self-signed_secure.example.com; do
+# generate self-signed_docker.com-notary.crt and self-signed_notary.ulmx.ca
+for selfsigned in self-signed_docker.com-notary self-signed_notary.ulmx.ca; do
         subj='/O=Docker/CN=docker.com\/notary'
-        if [[ "${selfsigned}" =~ .*example.com ]]; then
-                subj='/O=secure.example.com/CN=secure.example.com'
+        if [[ "${selfsigned}" =~ .*ulmx.ca ]]; then
+                subj='/O=notary.ulmx.ca/CN=notary.ulmx.ca'
         fi
 
         openssl ecparam -name prime256v1 -genkey -out "${selfsigned}.key"
@@ -200,11 +206,12 @@ echo '{"CN":"signer","hosts":[""],"key":{"algo":"rsa","size":2048}}' > notary-si
 cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=client notary-signer.json | cfssljson -bare notary-signer
 
 # Copy keys over to ../fixtures/database/[...] and ../notarysql/postgresql-initdb.d/[...]
-cp ca.pem ../database/
-cp notary-signer.pem ../database/
-cp notary-signer-key.pem ../database/
+
+cp ca.pem ../database
+cp notary-signer.pem ../database
+cp notary-signer-key.pem ../database
 cp notary-server.pem ../database
-cp notary-server-key.pem ../database/
+cp notary-server-key.pem ../database
 
 cp ca.pem ../../notarysql/postgresql-initdb.d/root.crt
 cp server.pem ../../notarysql/postgresql-initdb.d/server.crt

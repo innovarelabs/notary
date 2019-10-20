@@ -1,0 +1,57 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.16.0 (0c01309)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mysql
+  name: mysql
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mysql
+    spec:
+      containers:
+        - args:
+            - mysqld
+            - --innodb_file_per_table
+          env:
+            - name: MYSQL_ALLOW_EMPTY_PASSWORD
+              value: '"true"'
+            - name: TERM
+              value: dumb
+          image: mariadb:10.1.28
+          name: mysql
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3306
+          resources: {}
+          volumeMounts:
+            - mountPath: /docker-entrypoint-initdb.d
+              name: mysql-claim0
+            - mountPath: /var/lib/mysql
+              name: notary-notary-data
+      initContainers:
+      - name: initmariadb
+        image: ntahri/initmariadb
+        imagePullPolicy: Always
+        command: ["sh", "-c", "cp /initdb/* /docker-entrypoint-initdb.d/"]
+        volumeMounts:
+          - mountPath: /docker-entrypoint-initdb.d
+            name: mysql-claim0
+      restartPolicy: Always
+      volumes:
+        - name: mysql-claim0
+          persistentVolumeClaim:
+            claimName: mysql-claim0
+        - name: notary-notary-data
+          persistentVolumeClaim:
+            claimName: notary-notary-data
+status: {}

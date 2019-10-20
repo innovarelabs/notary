@@ -14,6 +14,8 @@ WORKDIR /go/src/${NOTARYPKG}
 
 RUN chmod 0600 ./fixtures/database/*
 
+RUN pwd && ls -la ./fixtures
+
 ENV SERVICE_NAME=notary_signer
 ENV NOTARY_SIGNER_DEFAULT_ALIAS="timestamp_1"
 ENV NOTARY_SIGNER_TIMESTAMP_1="testpassword"
