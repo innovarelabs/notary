@@ -3,6 +3,7 @@
 /cmd/notary-server/local.config.*
 /cmd/notary-signer/notary-signer
 /cmd/notary-signer/local.config.*
+/cmd/notary/root-ca.crt
 /cmd/escrow/escrow
 /cmd/escrow/local.config.*
 cover
