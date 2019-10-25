@@ -55,7 +55,7 @@ rm "root-ca.key" "root-ca.srl"
 
 # Then generate notary-server
 # Use the existing notary-server key
-# openssl genrsa -out "notary-server.key" 1024
+openssl genrsa -out "notary-server.key" 1024
 openssl req -new -key "notary-server.key" -out "notary-server.csr" -sha256 \
         -subj '/C=CA/ST=QC/L=Montreal/O=ulmx/CN=notary-server'
 
@@ -65,7 +65,7 @@ authorityKeyIdentifier=keyid,issuer
 basicConstraints = critical,CA:FALSE
 extendedKeyUsage=serverAuth,clientAuth
 keyUsage = critical, digitalSignature, keyEncipherment
-subjectAltName = DNS:notary-server, DNS:notaryserver, DNS:localhost, IP:127.0.0.1
+subjectAltName = DNS:notary.tools.innovarelabs.net, DNS:notary-server, DNS:notaryserver, DNS:localhost, IP:127.0.0.1
 subjectKeyIdentifier=hash
 EOL
 
@@ -79,7 +79,7 @@ rm "notary-server.cnf" "notary-server.csr"
 
 # Then generate notary-signer
 # Use the existing notary-signer key
-# openssl genrsa -out "notary-signer.key" 1024
+openssl genrsa -out "notary-signer.key" 1024
 openssl req -new -key "notary-signer.key" -out "notary-signer.csr" -sha256 \
         -subj '/C=CA/ST=QC/L=Montreal/O=ulmx/CN=notary-signer'
 
@@ -103,7 +103,7 @@ rm "notary-signer.cnf" "notary-signer.csr"
 
 # Then generate notary-escrow
 # Use the existing notary-escrow key
-# openssl genrsa -out "notary-escrow.key" 1024
+openssl genrsa -out "notary-escrow.key" 1024
 openssl req -new -key "notary-escrow.key" -out "notary-escrow.csr" -sha256 \
         -subj '/C=CA/ST=QC/L=Montreal/O=ulmx/CN=notary-escrow'
 
@@ -126,34 +126,34 @@ cat "intermediate-ca.crt" >> "notary-escrow.crt"
 rm "notary-escrow.cnf" "notary-escrow.csr"
 
 
-# Then generate notary.ulmx.ca
-# Use the existing notary.ulmx.ca key
-# openssl genrsa -out "notary.ulmx.ca.key" 1024
-openssl req -new -key "notary.ulmx.ca.key" -out "notary.ulmx.ca.csr" -sha256 \
-        -subj '/C=CA/ST=QC/L=Montreal/O=ulmx/CN=notary.ulmx.ca'
+# Then generate notary.tools.innovarelabs.net
+# Use the existing notary.tools.innovarelabs.net key
+openssl genrsa -out "notary.tools.innovarelabs.net.key" 1024
+openssl req -new -key "notary.tools.innovarelabs.net.key" -out "notary.tools.innovarelabs.net.csr" -sha256 \
+        -subj '/C=CA/ST=QC/L=Montreal/O=ulmx/CN=notary.tools.innovarelabs.net'
 
-cat > "notary.ulmx.ca.cnf" <<EOL
-[notary.ulmx.ca]
+cat > "notary.tools.innovarelabs.net.cnf" <<EOL
+[notary.tools.innovarelabs.net]
 authorityKeyIdentifier=keyid,issuer
 basicConstraints = critical,CA:FALSE
 extendedKeyUsage=serverAuth,clientAuth
 keyUsage = critical, digitalSignature, keyEncipherment
-subjectAltName = DNS:notary.ulmx.ca, DNS:localhost, IP:127.0.0.1
+subjectAltName = DNS:notary.tools.innovarelabs.net, DNS:localhost, IP:127.0.0.1
 subjectKeyIdentifier=hash
 EOL
 
-openssl x509 -req -days 750 -in "notary.ulmx.ca.csr" -sha256 \
+openssl x509 -req -days 750 -in "notary.tools.innovarelabs.net.csr" -sha256 \
         -CA "intermediate-ca.crt" -CAkey "intermediate-ca.key"  -CAcreateserial \
-        -out "notary.ulmx.ca.crt" -extfile "notary.ulmx.ca.cnf" -extensions notary.ulmx.ca
-rm "notary.ulmx.ca.cnf" "notary.ulmx.ca.csr"
+        -out "notary.tools.innovarelabs.net.crt" -extfile "notary.tools.innovarelabs.net.cnf" -extensions notary.tools.innovarelabs.net
+rm "notary.tools.innovarelabs.net.cnf" "notary.tools.innovarelabs.net.csr"
 rm "intermediate-ca.key" "intermediate-ca.srl"
 
 
-# generate self-signed_docker.com-notary.crt and self-signed_notary.ulmx.ca
-for selfsigned in self-signed_docker.com-notary self-signed_notary.ulmx.ca; do
+# generate self-signed_docker.com-notary.crt and self-signed_notary.tools.innovarelabs.net
+for selfsigned in self-signed_docker.com-notary self-signed_notary.tools.innovarelabs.net; do
         subj='/O=Docker/CN=docker.com\/notary'
         if [[ "${selfsigned}" =~ .*example.com ]]; then
-                subj='/O=notary.ulmx.ca/CN=notary.ulmx.ca'
+                subj='/O=notary.tools.innovarelabs.net/CN=notary.tools.innovarelabs.net'
         fi
 
         openssl ecparam -name prime256v1 -genkey -out "${selfsigned}.key"

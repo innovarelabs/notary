@@ -19,6 +19,6 @@ gas_output.csv
 /fixtures/*.crt
 /fixtures/*.key
 /fixtures/*.pem
-/fixtures/database/*.pem
+*.pem
 *.crt
 *.key

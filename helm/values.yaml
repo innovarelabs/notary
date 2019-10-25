@@ -4,11 +4,16 @@ ingress:
     enabled: true
   hosts:
   - localhost
-  - notary.ulmx.ca
+  - notary.tools.innovarelabs.net
   path: /
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+    ingress.kubernetes.io/secure-backends: "true"
 
 loadBalancer:
-  enabled: true
+  enabled: false
 
 storage:
   type: mysql
@@ -21,6 +26,7 @@ server:
   gunPrefixes:
   - "docker.io/"
   - "ulmx.ca/"
+  - "tools.innovarelabs.net"
   trust:
     type: remote
     hostname: notarysigner
