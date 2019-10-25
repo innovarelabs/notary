@@ -20,5 +20,5 @@ gas_output.csv
 /fixtures/*.key
 /fixtures/*.pem
 /fixtures/database/*.pem
-/notarysql/postgresql-initdb.d/*.crt
-/notarysql/postgresql-initdb.d/*.key
+*.crt
+*.key
